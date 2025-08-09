@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro Personalizado</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; padding: 20px; transition: background 0.5s ease; }
+  h1 { color: #333; }
+  .container { background: white; padding: 20px; border-radius: 10px; max-width: 450px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+  input { width: 80px; padding: 5px; margin: 5px; }
+  button { padding: 10px 20px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; }
+  #timer { font-size: 2em; margin: 20px 0; }
+  textarea { width: 100%; height: 80px; margin-top: 10px; }
+  .note-section, .history, .stats { margin-top: 20px; text-align: left; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Pomodoro Personalizado</h1>
+    <label>Estudo (min): <input type="number" id="studyTime" value="25"></label>
+    <label>Descanso (min): <input type="number" id="breakTime" value="5"></label>
+    <br>
+    <button onclick="startTimer('study')">Iniciar Estudo</button>
+    <button onclick="startTimer('break')">Iniciar Descanso</button>
+    <div id="timer">00:00</div>
+    <div class="note-section" style="display:none;">
+      <h3>Anotações</h3>
+      <textarea id="notes" placeholder="O que você fez neste ciclo?"></textarea>
+      <button onclick="saveNote()">Salvar Anotação</button>
+    </div>
+    <div class="history">
+      <h3>Histórico</h3>
+      <ul id="historyList"></ul>
+    </div>
+    <div class="stats">
+      <h3>Estatísticas Semanais</h3>
+      <ul id="statsList"></ul>
+    </div>
+  </div>
+<script>
+let countdown;
+let remainingTime;
+let currentMode;
+
+function setBackground(mode) {
+  if (mode === 'study') {
+    document.body.style.background = 'linear-gradient(135deg, #a8e6cf, #56ab2f)';
+  } else if (mode === 'break') {
+    document.body.style.background = 'linear-gradient(135deg, #ffe5b4, #ff9966)';
+  } else {
+    document.body.style.background = '#f4f4f4';
+  }
+}
+
+function startTimer(mode) {
+  clearInterval(countdown);
+  currentMode = mode;
+  setBackground(mode);
+  let minutes = mode === 'study' ? document.getElementById('studyTime').value : document.getElementById('breakTime').value;
+  remainingTime = minutes * 60;
+  updateDisplay();
+  countdown = setInterval(() => {
+    remainingTime--;
+    updateDisplay();
+    if (remainingTime <= 0) {
+      clearInterval(countdown);
+      alert(mode === 'study' ? 'Tempo de estudo acabou! Hora de descansar.' : 'Descanso finalizado! Volte ao estudo.');
+      if (mode === 'study') {
+        document.querySelector('.note-section').style.display = 'block';
+        saveStats(minutes);
+        setBackground('break');
+      } else {
+        document.querySelector('.note-section').style.display = 'none';
+        setBackground('study');
+      }
+    }
+  }, 1000);
+}
+
+function updateDisplay() {
+  let minutes = Math.floor(remainingTime / 60);
+  let seconds = remainingTime % 60;
+  document.getElementById('timer').textContent = `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+}
+
+function saveNote() {
+  let note = document.getElementById('notes').value.trim();
+  if (!note) return;
+  let history = JSON.parse(localStorage.getItem('pomodoroNotes')) || [];
+  let entry = { date: new Date().toLocaleString(), text: note };
+  history.unshift(entry);
+  localStorage.setItem('pomodoroNotes', JSON.stringify(history));
+  document.getElementById('notes').value = '';
+  document.querySelector('.note-section').style.display = 'none';
+  loadHistory();
+}
+
+function saveStats(minutes) {
+  let stats = JSON.parse(localStorage.getItem('pomodoroStats')) || {};
+  let today = new Date();
+  let weekKey = getWeekKey(today);
+  if (!stats[weekKey]) stats[weekKey] = 0;
+  stats[weekKey] += parseInt(minutes);
+  localStorage.setItem('pomodoroStats', JSON.stringify(stats));
+  loadStats();
+}
+
+function getWeekKey(date) {
+  let onejan = new Date(date.getFullYear(), 0, 1);
+  let week = Math.ceil((((date - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+  return `${date.getFullYear()}-Semana${week}`;
+}
+
+function loadHistory() {
+  let history = JSON.parse(localStorage.getItem('pomodoroNotes')) || [];
+  let list = document.getElementById('historyList');
+  list.innerHTML = '';
+  history.forEach(item => {
+    let li = document.createElement('li');
+    li.textContent = `[${item.date}] ${item.text}`;
+    list.appendChild(li);
+  });
+}
+
+function loadStats() {
+  let stats = JSON.parse(localStorage.getItem('pomodoroStats')) || {};
+  let list = document.getElementById('statsList');
+  list.innerHTML = '';
+  Object.keys(stats).sort().reverse().forEach(week => {
+    let li = document.createElement('li');
+    li.textContent = `${week}: ${stats[week]} min de estudo`;
+    list.appendChild(li);
+  });
+}
+
+setBackground('neutral');
+loadHistory();
+loadStats();
+</script>
+</body>
+</html>
